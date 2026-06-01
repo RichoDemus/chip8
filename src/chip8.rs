@@ -1,7 +1,3 @@
-use crate::chip8::Operation::{
-    AddRegister, CallSubroutine, ClearScreen, Draw, Jump, Return, SetIndex, SetRegister,
-    SkipIfEquals, SkipIfEqualsValue, SkipIfNotEquals, SkipIfNotEqualsValue,
-};
 use bevy::prelude::Resource;
 use std::collections::VecDeque;
 
@@ -23,113 +19,6 @@ const _FONTS: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
-
-#[derive(Debug, PartialEq, Eq)]
-enum Operation {
-    ClearScreen,
-    SetRegister {
-        vx: usize,
-        value: u8,
-    },
-    SkipIfEqualsValue {
-        vx: usize,
-        value: u8,
-    },
-    SkipIfNotEqualsValue {
-        vx: usize,
-        value: u8,
-    },
-    SkipIfEquals {
-        vx: usize,
-        vy: usize,
-    },
-    SkipIfNotEquals {
-        vx: usize,
-        vy: usize,
-    },
-    AddRegister {
-        vx: usize,
-        value: u8,
-    },
-    SetIndex {
-        value: u16,
-    },
-    Draw {
-        register_x: usize,
-        register_y: usize,
-        height: u8,
-    },
-    Jump {
-        program_counter: usize,
-    },
-    CallSubroutine {
-        program_counter: usize,
-    },
-    Return,
-}
-
-impl From<u16> for Operation {
-    fn from(op_word: u16) -> Self {
-        // common fields
-        let o = ((op_word >> 12) & 0xF) as u8; // high nibble (opcode)
-        let vx = ((op_word >> 8) & 0xF) as u8; // X nibble
-        let vy = ((op_word >> 4) & 0xF) as u8; // Y nibble
-        let n = (op_word & 0xF) as u8; // low nibble
-        let nn = (op_word & 0x00FF) as u8; // lowest 8 bits
-        let nnn = op_word & 0x0FFF; // lowest 12 bits
-
-        match o {
-            0x0 => match op_word {
-                0x00E0 => ClearScreen,
-                0x00EE => Return,
-                other => panic!("Unhandled 0x0 opcode: {other:#04x}"),
-            },
-
-            0x1 => Jump {
-                program_counter: nnn as usize,
-            },
-            0x2 => CallSubroutine {
-                program_counter: nnn as usize,
-            },
-            0x3 => SkipIfEqualsValue {
-                vx: vx as usize,
-                value: nn,
-            },
-            0x4 => SkipIfNotEqualsValue {
-                vx: vx as usize,
-                value: nn,
-            },
-            0x5 => SkipIfEquals {
-                vx: vx as usize,
-                vy: vy as usize,
-            },
-            0x9 => SkipIfNotEquals {
-                vx: vx as usize,
-                vy: vy as usize,
-            },
-
-            0x6 => SetRegister {
-                vx: vx as usize,
-                value: nn,
-            },
-
-            0x7 => AddRegister {
-                vx: vx as usize,
-                value: nn,
-            },
-
-            0xA => SetIndex { value: nnn },
-
-            0xD => Draw {
-                register_x: vx as usize,
-                register_y: vy as usize,
-                height: n,
-            },
-
-            other => panic!("Unhandled opcode: {other:#x} (full: {op_word:#06x})"),
-        }
-    }
-}
 
 pub(crate) const ROWS: usize = 32;
 pub(crate) const COLUMNS: usize = 64;
@@ -169,51 +58,81 @@ impl Chip8 {
             | self.memory[self.program_counter + 1] as u16;
         self.program_counter += 2;
 
-        let operation: Operation = operation.into();
+        let opcode = ((operation >> 12) & 0xF) as u8; // high nibble (opcode)
+        let vx = ((operation >> 8) & 0xF) as u8; // X nibble
+        let vy = ((operation >> 4) & 0xF) as u8; // Y nibble
+        let n = (operation & 0xF) as u8; // low nibble
+        let nn = (operation & 0x00FF) as u8; // lowest 8 bits
+        let nnn = operation & 0x0FFF; // lowest 12 bits
 
-        match operation {
-            ClearScreen => self.display = [[false; COLUMNS]; ROWS],
-            SkipIfEqualsValue { vx, value } => {
-                if self.registers[vx] == value {
+        match opcode {
+            0x0 => match operation {
+                0x00E0 => {
+                    // Clear Screen
+                    self.display = [[false; COLUMNS]; ROWS]
+                }
+                0x00EE => {
+                    // Return
+                    self.program_counter = self.stack.pop_front().unwrap();
+                }
+                other => panic!("Unhandled 0x0 opcode: {other:#04x}"),
+            },
+
+            0x1 => {
+                // Jump
+                self.program_counter = nnn as usize;
+            }
+            0x2 => {
+                // Call subroutinee
+                self.stack.push_front(self.program_counter);
+                self.program_counter = nnn as usize;
+            }
+            0x3 => {
+                // Skip if equals value
+                if self.registers[vx as usize] == nn {
                     self.program_counter += 2;
                 }
             }
-            SkipIfNotEqualsValue { vx, value } => {
-                if self.registers[vx] != value {
+            0x4 => {
+                // Skip if not equals value
+                if self.registers[vx as usize] != nn {
                     self.program_counter += 2;
                 }
             }
-            SkipIfEquals { vx, vy } => {
-                if self.registers[vx] == self.registers[vy] {
+            0x5 => {
+                // Skip if equals another register
+                if self.registers[vx as usize] == self.registers[vy as usize] {
                     self.program_counter += 2;
                 }
             }
-            SkipIfNotEquals { vx, vy } => {
-                if self.registers[vx] != self.registers[vy] {
+            0x9 => {
+                // Skip if not equals another register
+                if self.registers[vx as usize] != self.registers[vy as usize] {
                     self.program_counter += 2;
                 }
             }
-            SetRegister { vx, value } => {
-                // println!("Set Register {vx} to {value:#x}")
-                self.registers[vx] = value;
+
+            0x6 => {
+                // Set register
+                self.registers[vx as usize] = nn;
             }
-            AddRegister { vx, value } => {
-                self.registers[vx] = self.registers[vx].saturating_add(value)
+
+            0x7 => {
+                // Add register
+                self.registers[vx as usize] = self.registers[vx as usize].saturating_add(nn);
             }
-            SetIndex { value } => {
-                //println!("Set Index Register to {value:#x}")
-                self.register_i = value;
+
+            0xA => {
+                self.register_i = nnn;
             }
-            Draw {
-                register_x,
-                register_y,
-                height,
-            } => {
-                let orig_x = self.registers[register_x] as usize % COLUMNS;
-                let orig_y = self.registers[register_y] as usize % ROWS;
+
+            0xD => {
+                // Draw
+                let orig_x = self.registers[vx as usize] as usize % COLUMNS;
+                let orig_y = self.registers[vy as usize] as usize % ROWS;
                 self.registers[0xF] = 0;
 
-                for row in 0..height as usize {
+                for row in 0..n as usize {
                     let sprite_byte = self.memory[self.register_i as usize + row];
                     let sprite_bits: [bool; 8] =
                         core::array::from_fn(|i| (sprite_byte & (1 << (7 - i))) != 0);
@@ -234,17 +153,8 @@ impl Chip8 {
                     }
                 }
             }
-            Jump { program_counter } => {
-                // println!("Jump program counter to {program_counter:#x}")
-                self.program_counter = program_counter;
-            }
-            CallSubroutine { program_counter } => {
-                self.stack.push_front(self.program_counter);
-                self.program_counter = program_counter;
-            }
-            Return => {
-                self.program_counter = self.stack.pop_front().unwrap();
-            }
+
+            other => panic!("Unhandled opcode: {other:#x} (full: {operation:#06x})"),
         }
     }
 }
@@ -258,48 +168,6 @@ fn _add_fonts(memory: &mut [u8; 4096], fonts: [u8; 80]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_decode_clear_screen() {
-        let operation: Operation = 0x00E0.into();
-        assert_eq!(operation, ClearScreen)
-    }
-
-    #[test]
-    fn test_decode_set_register() {
-        let operation: Operation = 0x6512.into();
-        assert_eq!(
-            operation,
-            SetRegister {
-                vx: 0x5,
-                value: 0x12
-            }
-        );
-    }
-
-    #[test]
-    fn test_decode_draw() {
-        let operation: Operation = 0xDABC.into();
-        assert_eq!(
-            operation,
-            Draw {
-                register_x: 0xA,
-                register_y: 0xB,
-                height: 0xC
-            }
-        );
-    }
-
-    #[test]
-    fn test_decode_jump() {
-        let operation: Operation = 0x1ABC.into();
-        assert_eq!(
-            operation,
-            Jump {
-                program_counter: 0xABC
-            }
-        );
-    }
 
     #[test]
     fn test() {
