@@ -1,4 +1,4 @@
-use crate::chip8::Operation::{ClearScreen, Draw, Jump, SetIndex, SetRegister};
+use crate::chip8::Operation::{AddRegister, ClearScreen, Draw, Jump, SetIndex, SetRegister};
 use bevy::prelude::Resource;
 
 const _FONTS: [u8; 80] = [
@@ -24,6 +24,10 @@ const _FONTS: [u8; 80] = [
 enum Operation {
     ClearScreen,
     SetRegister {
+        vx: usize,
+        value: u8,
+    },
+    AddRegister {
         vx: usize,
         value: u8,
     },
@@ -53,7 +57,6 @@ impl From<u16> for Operation {
         match o {
             0x0 => match op_word {
                 0x00E0 => ClearScreen,
-                // 0x00EE would be "Return from subroutine" (RET) if you add it later
                 other => panic!("Unhandled 0x0 opcode: {other:#04x}"),
             },
 
@@ -62,6 +65,11 @@ impl From<u16> for Operation {
             },
 
             0x6 => SetRegister {
+                vx: x as usize,
+                value: kk,
+            },
+
+            0x7 => AddRegister {
                 vx: x as usize,
                 value: kk,
             },
@@ -125,6 +133,7 @@ impl Chip8 {
                 // println!("Set Register {vx} to {value:#x}")
                 self.registers[vx] = value;
             }
+            AddRegister { vx, value } => self.registers[vx] += value,
             SetIndex { value } => {
                 //println!("Set Index Register to {value:#x}")
                 self.register_i = value;
