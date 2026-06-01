@@ -1,20 +1,41 @@
 use bevy::prelude::*;
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
+pub struct LoadedRom {
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Clone)]
 pub struct Rom {
+    pub name: String,
     pub bytes: Vec<u8>,
 }
 
 impl Rom {
     pub fn load_logo() -> Rom {
         Rom {
+            name: "Logo".to_string(),
             bytes: include_bytes!("../roms/test/1-chip8-logo.ch8").to_vec(),
         }
     }
 
     pub fn load_opcodes() -> Rom {
         Rom {
+            name: "opcodes".to_string(),
             bytes: include_bytes!("../roms/test/X-opcodes.ch8").to_vec(),
+        }
+    }
+}
+
+#[derive(Resource, Clone)]
+pub struct Roms {
+    pub roms: Vec<Rom>,
+}
+
+impl Default for Roms {
+    fn default() -> Self {
+        Self {
+            roms: vec![Rom::load_logo(), Rom::load_opcodes()],
         }
     }
 }

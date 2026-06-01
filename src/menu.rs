@@ -16,9 +16,9 @@ pub enum GameState {
 }
 
 #[allow(clippy::module_inception)]
-mod menu {
+pub mod menu {
     use super::{GameState, TEXT_COLOR};
-    use crate::rom::Rom;
+    use crate::rom::{LoadedRom, Roms};
     use bevy::{app::AppExit, color::palettes::css::CRIMSON, prelude::*};
 
     pub fn menu_plugin(app: &mut App) {
@@ -53,11 +53,10 @@ mod menu {
     struct SelectedOption;
 
     // All actions that can be triggered from a button click
-    #[derive(Component)]
-    enum MenuButtonAction {
+    #[derive(Component, Clone)]
+    pub enum MenuButtonAction {
         Quit,
-        PlayLogo,
-        Opcodes,
+        Play(Vec<u8>),
     }
 
     // This system handles changing all buttons color based on mouse interaction
@@ -82,7 +81,7 @@ mod menu {
         menu_state.set(MenuState::Main);
     }
 
-    fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, roms: Res<Roms>) {
         // Common style for all buttons on the screen
         let button_node = Node {
             width: px(300),
@@ -92,6 +91,7 @@ mod menu {
             align_items: AlignItems::Center,
             ..default()
         };
+        let button_node2 = button_node.clone();
         let button_icon_node = Node {
             width: px(30),
             // This takes the icons out of the flexbox flow, to be positioned exactly
@@ -100,13 +100,21 @@ mod menu {
             left: px(10),
             ..default()
         };
+        let button_icon_node2 = button_icon_node.clone();
         let button_text_font = TextFont {
             font_size: 33.0,
             ..default()
         };
+        let button_text_font2 = button_text_font.clone();
 
         let right_icon = asset_server.load("textures/Game Icons/right.png");
         let exit_icon = asset_server.load("textures/Game Icons/exitRight.png");
+
+        let roms = roms
+            .roms
+            .iter()
+            .map(|rom| (rom.name.clone(), rom.bytes.clone()))
+            .collect::<Vec<_>>();
 
         commands.spawn((
             DespawnOnExit(MenuState::Main),
@@ -125,9 +133,8 @@ mod menu {
                     ..default()
                 },
                 BackgroundColor(CRIMSON.into()),
-                children![
-                    // Display the game name
-                    (
+                Children::spawn((
+                    Spawn((
                         Text::new("Bevy Game Menu UI"),
                         TextFont {
                             font_size: 67.0,
@@ -138,46 +145,39 @@ mod menu {
                             margin: UiRect::all(px(50)),
                             ..default()
                         },
-                    ),
-                    (
+                    )),
+                    SpawnIter(roms.into_iter().map(move |(name, rom_bytes)| (
                         Button,
-                        button_node.clone(),
+                        button_node2.clone(),
                         BackgroundColor(NORMAL_BUTTON),
-                        MenuButtonAction::PlayLogo,
+                        MenuButtonAction::Play(rom_bytes),
                         children![
-                            (ImageNode::new(right_icon.clone()), button_icon_node.clone()),
                             (
-                                Text::new("Logo"),
-                                button_text_font.clone(),
+                                ImageNode::new(right_icon.clone()),
+                                button_icon_node2.clone()
+                            ),
+                            (
+                                Text::new(name),
+                                button_text_font2.clone(),
                                 TextColor(TEXT_COLOR),
                             ),
                         ]
-                    ),
-                    (
+                    ))),
+                    Spawn((
                         Button,
                         button_node.clone(),
-                        BackgroundColor(NORMAL_BUTTON),
-                        MenuButtonAction::Opcodes,
-                        children![
-                            (ImageNode::new(right_icon), button_icon_node.clone()),
-                            (
-                                Text::new("Test opcodes"),
-                                button_text_font.clone(),
-                                TextColor(TEXT_COLOR),
-                            ),
-                        ]
-                    ),
-                    (
-                        Button,
-                        button_node,
                         BackgroundColor(NORMAL_BUTTON),
                         MenuButtonAction::Quit,
                         children![
-                            (ImageNode::new(exit_icon), button_icon_node),
-                            (Text::new("Quit"), button_text_font, TextColor(TEXT_COLOR),),
+                            (ImageNode::new(exit_icon.clone()), button_icon_node.clone()),
+                            (
+                                Text::new("Quit"),
+                                button_text_font.clone(),
+                                TextColor(TEXT_COLOR),
+                            ),
                         ]
-                    ),
-                ]
+                    )),
+                )),
             )],
         ));
     }
@@ -199,15 +199,12 @@ mod menu {
                     MenuButtonAction::Quit => {
                         app_exit_writer.write(AppExit::Success);
                     }
-                    MenuButtonAction::PlayLogo => {
+                    MenuButtonAction::Play(rom_bytes) => {
                         game_state.set(GameState::Game);
                         menu_state.set(MenuState::Disabled);
-                        commands.insert_resource(Rom::load_logo());
-                    }
-                    MenuButtonAction::Opcodes => {
-                        game_state.set(GameState::Game);
-                        menu_state.set(MenuState::Disabled);
-                        commands.insert_resource(Rom::load_opcodes());
+                        commands.insert_resource(LoadedRom {
+                            bytes: rom_bytes.clone(),
+                        });
                     }
                 }
             }

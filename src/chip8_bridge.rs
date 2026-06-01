@@ -1,6 +1,6 @@
 use crate::chip8::{COLUMNS, Chip8, ROWS};
 use crate::menu::GameState;
-use crate::rom::Rom;
+use crate::rom::LoadedRom;
 use bevy::asset::Assets;
 use bevy::color::Color;
 use bevy::mesh::{Mesh, Mesh2d};
@@ -52,17 +52,17 @@ pub fn setup_pixels(
     }
 }
 
-fn load_rom(rom: Res<Rom>, mut chip8: ResMut<Chip8>) {
+fn load_rom(rom: Res<LoadedRom>, mut chip8: ResMut<Chip8>) {
     chip8.load_rom(rom.bytes.as_slice())
 }
 
-pub fn tick_cpu(mut chip8: ResMut<Chip8>) {
+fn tick_cpu(mut chip8: ResMut<Chip8>) {
     for _ in 0..10 {
         chip8.tick();
     }
 }
 
-pub fn translate_display_to_bevy(chip8: Res<Chip8>, mut pixels: Query<(&Pixel, &mut Visibility)>) {
+fn translate_display_to_bevy(chip8: Res<Chip8>, mut pixels: Query<(&Pixel, &mut Visibility)>) {
     for (pixel, mut visibility) in pixels.iter_mut() {
         if chip8.display[ROWS - 1 - pixel.row][pixel.column] {
             *visibility = Visibility::Visible;
