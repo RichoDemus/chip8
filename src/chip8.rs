@@ -94,22 +94,19 @@ pub(crate) struct Chip8 {
 
 impl Default for Chip8 {
     fn default() -> Self {
-        let mut chip8 = Self {
+        Self {
             display: [[false; COLUMNS]; ROWS],
             memory: [0; 4096],
             _stack: Vec::new(),
             program_counter: 512,
             register_i: 0,
             registers: [0; 16],
-        };
-        chip8.load_rom();
-        chip8
+        }
     }
 }
 
 impl Chip8 {
-    pub fn load_rom(&mut self) {
-        let rom = include_bytes!("../roms/1-chip8-logo.ch8");
+    pub fn load_rom(&mut self, rom: &[u8]) {
         for (i, byte) in rom.iter().enumerate() {
             self.memory[512 + i] = *byte;
         }
@@ -225,7 +222,7 @@ mod tests {
     #[test]
     fn test() {
         let mut chip8 = Chip8::default();
-        chip8.load_rom();
+        chip8.load_rom(include_bytes!("../roms/test/1-chip8-logo.ch8"));
         for _i in 0..40 {
             chip8.tick();
         }
