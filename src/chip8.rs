@@ -51,7 +51,7 @@ impl From<u16> for Operation {
         let x = ((op_word >> 8) & 0xF) as u8; // X nibble
         let y = ((op_word >> 4) & 0xF) as u8; // Y nibble
         let n = (op_word & 0xF) as u8; // low nibble
-        let kk = (op_word & 0x00FF) as u8; // lowest 8 bits
+        let nn = (op_word & 0x00FF) as u8; // lowest 8 bits
         let nnn = op_word & 0x0FFF; // lowest 12 bits
 
         match o {
@@ -66,12 +66,12 @@ impl From<u16> for Operation {
 
             0x6 => SetRegister {
                 vx: x as usize,
-                value: kk,
+                value: nn,
             },
 
             0x7 => AddRegister {
                 vx: x as usize,
-                value: kk,
+                value: nn,
             },
 
             0xA => SetIndex { value: nnn },
