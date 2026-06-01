@@ -105,12 +105,6 @@ impl Chip8 {
                     self.program_counter += 2;
                 }
             }
-            0x9 => {
-                // Skip if not equals another register
-                if self.registers[vx as usize] != self.registers[vy as usize] {
-                    self.program_counter += 2;
-                }
-            }
 
             0x6 => {
                 // Set register
@@ -120,6 +114,91 @@ impl Chip8 {
             0x7 => {
                 // Add register
                 self.registers[vx as usize] = self.registers[vx as usize].saturating_add(nn);
+            }
+
+            0x8 => {
+                // Logical and arithmetic
+                match n {
+                    0x0 => {
+                        // set vx to vy
+                        self.registers[vx as usize] = self.registers[vy as usize];
+                    }
+                    0x1 => {
+                        // set vx to vx or vy
+                        self.registers[vx as usize] |= self.registers[vy as usize];
+                    }
+                    0x2 => {
+                        // set vx to vx and vy
+                        self.registers[vx as usize] &= self.registers[vy as usize];
+                    }
+                    0x3 => {
+                        // set vx to vx xor vy
+                        self.registers[vx as usize] ^= self.registers[vy as usize];
+                    }
+                    0x4 => {
+                        // add vy to vx, set carry to 1 if overflow
+                        let (new_vx, carry) = self.registers[vx as usize]
+                            .overflowing_add(self.registers[vy as usize]);
+                        self.registers[vx as usize] = new_vx;
+                        self.registers[0xF] = carry as u8;
+                    }
+                    0x5 => {
+                        // subtract vy from vx
+                        // sets carry flag to 0 if overflow, 1 if no overflow
+                        let minuend = self.registers[vx as usize];
+                        let subtrahend = self.registers[vy as usize];
+                        if minuend >= subtrahend {
+                            self.registers[0xF] = 1;
+                        } else {
+                            self.registers[0xF] = 0
+                        }
+                        self.registers[vx as usize] =
+                            self.registers[vx as usize].wrapping_sub(self.registers[vy as usize]);
+                    }
+                    0x6 => {
+                        // Shift Right
+                        // Ambigious if this should happen or not:
+                        self.registers[vx as usize] = self.registers[vy as usize];
+
+                        // normal behavior
+                        let lsb = self.registers[vx as usize] & 0x01;
+                        self.registers[vx as usize] >>= 1;
+                        self.registers[0xF] = lsb;
+                    }
+                    0x7 => {
+                        // subtract vx from vy
+                        // sets carry flag to 0 if overflow, 1 if no overflow
+                        let minuend = self.registers[vy as usize];
+                        let subtrahend = self.registers[vx as usize];
+                        if minuend >= subtrahend {
+                            self.registers[0xF] = 1;
+                        } else {
+                            self.registers[0xF] = 0
+                        }
+                        self.registers[vx as usize] =
+                            self.registers[vy as usize].wrapping_sub(self.registers[vx as usize]);
+                    }
+                    0xE => {
+                        // Shift Left
+                        // Ambigious if this should happen or not:
+                        self.registers[vx as usize] = self.registers[vy as usize];
+
+                        // normal behavior
+                        let msb = (self.registers[vx as usize] & 0x80) >> 7;
+                        self.registers[vx as usize] <<= 1;
+                        self.registers[0xF] = msb;
+                    }
+                    other => panic!(
+                        "Unhandled Logical and arithmetic opcode: {other:#x} (full: {operation:#06x})"
+                    ),
+                }
+            }
+
+            0x9 => {
+                // Skip if not equals another register
+                if self.registers[vx as usize] != self.registers[vy as usize] {
+                    self.program_counter += 2;
+                }
             }
 
             0xA => {
