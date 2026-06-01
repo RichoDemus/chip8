@@ -29,6 +29,10 @@ impl Default for Roms {
                     bytes: include_bytes!("../roms/test/2-ibm-logo.ch8").to_vec(),
                 },
                 Rom {
+                    name: "Corax+".to_string(),
+                    bytes: include_bytes!("../roms/test/3-corax+.ch8").to_vec(),
+                },
+                Rom {
                     name: "opcodes".to_string(),
                     bytes: include_bytes!("../roms/test/X-opcodes.ch8").to_vec(),
                 },

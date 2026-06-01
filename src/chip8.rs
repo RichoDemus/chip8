@@ -1,5 +1,9 @@
-use crate::chip8::Operation::{AddRegister, ClearScreen, Draw, Jump, SetIndex, SetRegister};
+use crate::chip8::Operation::{
+    AddRegister, CallSubroutine, ClearScreen, Draw, Jump, Return, SetIndex, SetRegister,
+    SkipIfEquals, SkipIfEqualsValue, SkipIfNotEquals, SkipIfNotEqualsValue,
+};
 use bevy::prelude::Resource;
+use std::collections::VecDeque;
 
 const _FONTS: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -27,6 +31,22 @@ enum Operation {
         vx: usize,
         value: u8,
     },
+    SkipIfEqualsValue {
+        vx: usize,
+        value: u8,
+    },
+    SkipIfNotEqualsValue {
+        vx: usize,
+        value: u8,
+    },
+    SkipIfEquals {
+        vx: usize,
+        vy: usize,
+    },
+    SkipIfNotEquals {
+        vx: usize,
+        vy: usize,
+    },
     AddRegister {
         vx: usize,
         value: u8,
@@ -42,14 +62,18 @@ enum Operation {
     Jump {
         program_counter: usize,
     },
+    CallSubroutine {
+        program_counter: usize,
+    },
+    Return,
 }
 
 impl From<u16> for Operation {
     fn from(op_word: u16) -> Self {
         // common fields
         let o = ((op_word >> 12) & 0xF) as u8; // high nibble (opcode)
-        let x = ((op_word >> 8) & 0xF) as u8; // X nibble
-        let y = ((op_word >> 4) & 0xF) as u8; // Y nibble
+        let vx = ((op_word >> 8) & 0xF) as u8; // X nibble
+        let vy = ((op_word >> 4) & 0xF) as u8; // Y nibble
         let n = (op_word & 0xF) as u8; // low nibble
         let nn = (op_word & 0x00FF) as u8; // lowest 8 bits
         let nnn = op_word & 0x0FFF; // lowest 12 bits
@@ -57,28 +81,48 @@ impl From<u16> for Operation {
         match o {
             0x0 => match op_word {
                 0x00E0 => ClearScreen,
+                0x00EE => Return,
                 other => panic!("Unhandled 0x0 opcode: {other:#04x}"),
             },
 
             0x1 => Jump {
                 program_counter: nnn as usize,
             },
+            0x2 => CallSubroutine {
+                program_counter: nnn as usize,
+            },
+            0x3 => SkipIfEqualsValue {
+                vx: vx as usize,
+                value: nn,
+            },
+            0x4 => SkipIfNotEqualsValue {
+                vx: vx as usize,
+                value: nn,
+            },
+            0x5 => SkipIfEquals {
+                vx: vx as usize,
+                vy: vy as usize,
+            },
+            0x9 => SkipIfNotEquals {
+                vx: vx as usize,
+                vy: vy as usize,
+            },
 
             0x6 => SetRegister {
-                vx: x as usize,
+                vx: vx as usize,
                 value: nn,
             },
 
             0x7 => AddRegister {
-                vx: x as usize,
+                vx: vx as usize,
                 value: nn,
             },
 
             0xA => SetIndex { value: nnn },
 
             0xD => Draw {
-                register_x: x as usize,
-                register_y: y as usize,
+                register_x: vx as usize,
+                register_y: vy as usize,
                 height: n,
             },
 
@@ -94,7 +138,7 @@ pub(crate) const COLUMNS: usize = 64;
 pub(crate) struct Chip8 {
     pub(crate) display: [[bool; COLUMNS]; ROWS],
     memory: [u8; 4096],
-    _stack: Vec<u16>,
+    stack: VecDeque<usize>,
     program_counter: usize,
     register_i: u16,
     registers: [u8; 16],
@@ -105,7 +149,7 @@ impl Default for Chip8 {
         Self {
             display: [[false; COLUMNS]; ROWS],
             memory: [0; 4096],
-            _stack: Vec::new(),
+            stack: VecDeque::new(),
             program_counter: 512,
             register_i: 0,
             registers: [0; 16],
@@ -129,11 +173,33 @@ impl Chip8 {
 
         match operation {
             ClearScreen => self.display = [[false; COLUMNS]; ROWS],
+            SkipIfEqualsValue { vx, value } => {
+                if self.registers[vx] == value {
+                    self.program_counter += 2;
+                }
+            }
+            SkipIfNotEqualsValue { vx, value } => {
+                if self.registers[vx] != value {
+                    self.program_counter += 2;
+                }
+            }
+            SkipIfEquals { vx, vy } => {
+                if self.registers[vx] == self.registers[vy] {
+                    self.program_counter += 2;
+                }
+            }
+            SkipIfNotEquals { vx, vy } => {
+                if self.registers[vx] != self.registers[vy] {
+                    self.program_counter += 2;
+                }
+            }
             SetRegister { vx, value } => {
                 // println!("Set Register {vx} to {value:#x}")
                 self.registers[vx] = value;
             }
-            AddRegister { vx, value } => self.registers[vx] += value,
+            AddRegister { vx, value } => {
+                self.registers[vx] = self.registers[vx].saturating_add(value)
+            }
             SetIndex { value } => {
                 //println!("Set Index Register to {value:#x}")
                 self.register_i = value;
@@ -171,6 +237,13 @@ impl Chip8 {
             Jump { program_counter } => {
                 // println!("Jump program counter to {program_counter:#x}")
                 self.program_counter = program_counter;
+            }
+            CallSubroutine { program_counter } => {
+                self.stack.push_front(self.program_counter);
+                self.program_counter = program_counter;
+            }
+            Return => {
+                self.program_counter = self.stack.pop_front().unwrap();
             }
         }
     }
