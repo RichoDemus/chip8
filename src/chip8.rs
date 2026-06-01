@@ -113,7 +113,7 @@ impl Chip8 {
 
             0x7 => {
                 // Add register
-                self.registers[vx as usize] = self.registers[vx as usize].saturating_add(nn);
+                self.registers[vx as usize] = self.registers[vx as usize].wrapping_add(nn);
             }
 
             0x8 => {
@@ -232,7 +232,32 @@ impl Chip8 {
                     }
                 }
             }
-
+            0xF => {
+                match nn {
+                    0x33 => {
+                        // Binary-coded decimal conversion
+                        let value = self.registers[vx as usize];
+                        self.memory[self.register_i as usize] = value / 100;
+                        self.memory[self.register_i as usize + 1] = (value / 10) % 10;
+                        self.memory[self.register_i as usize + 2] = value % 10;
+                    }
+                    0x55 => {
+                        // Store registers into memory
+                        for i in 0..=vx {
+                            self.memory[self.register_i as usize + i as usize] =
+                                self.registers[i as usize];
+                        }
+                    }
+                    0x65 => {
+                        // Load memory into registers
+                        for i in 0..=vx {
+                            self.registers[i as usize] =
+                                self.memory[self.register_i as usize + i as usize];
+                        }
+                    }
+                    other => panic!("Unhandled F-opcode: {other:#x} (full: {operation:#06x})"),
+                }
+            }
             other => panic!("Unhandled opcode: {other:#x} (full: {operation:#06x})"),
         }
     }
