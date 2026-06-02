@@ -5,6 +5,7 @@ use bevy::asset::Assets;
 use bevy::color::Color;
 use bevy::mesh::{Mesh, Mesh2d};
 use bevy::prelude::*;
+use std::time::Duration;
 
 pub struct Chip8BridgePlugin;
 impl Plugin for Chip8BridgePlugin {
@@ -12,6 +13,7 @@ impl Plugin for Chip8BridgePlugin {
         app.init_resource::<Chip8>();
         app.add_systems(OnEnter(GameState::Game), setup_pixels);
         app.add_systems(OnEnter(GameState::Game), load_rom);
+        app.add_systems(OnEnter(GameState::Game), setup_audio);
         app.add_systems(FixedUpdate, tick_cpu.run_if(in_state(GameState::Game)));
         app.add_systems(
             Update,
@@ -56,11 +58,21 @@ fn load_rom(rom: Res<LoadedRom>, mut chip8: ResMut<Chip8>) {
     chip8.load_rom(rom.bytes.as_slice())
 }
 
+#[derive(Component)]
+struct Beep;
+
+fn setup_audio(mut commands: Commands, mut pitch_assets: ResMut<Assets<Pitch>>) {
+    commands.spawn((
+        AudioPlayer(pitch_assets.add(Pitch::new(220., Duration::new(1, 0)))),
+        PlaybackSettings::LOOP,
+        Beep,
+    ));
+}
+
 fn tick_cpu(
     mut chip8: ResMut<Chip8>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    //mut commands: Commands,
-    //mut pitch_assets: ResMut<Assets<Pitch>>,
+    audio: Single<&mut AudioSink, With<Beep>>,
 ) {
     let mut should_beep = false;
     chip8.decrement_timers();
@@ -88,10 +100,13 @@ fn tick_cpu(
         }
     }
     if should_beep {
-        // commands.spawn((
-        //     AudioPlayer(pitch_assets.add(Pitch::new(220., Duration::new(1, 0)))),
-        //     PlaybackSettings::DESPAWN,
-        // ));
+        if audio.is_paused() {
+            audio.toggle_playback();
+        }
+    } else {
+        if !audio.is_paused() {
+            audio.toggle_playback();
+        }
     }
 }
 
