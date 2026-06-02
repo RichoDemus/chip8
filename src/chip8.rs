@@ -234,6 +234,14 @@ impl Chip8 {
             }
             0xF => {
                 match nn {
+                    0x1e => {
+                        // Add to index
+                        let (new_i, carry) = self
+                            .register_i
+                            .overflowing_add(self.registers[vx as usize] as u16);
+                        self.register_i = new_i;
+                        self.registers[0xF] = carry as u8;
+                    }
                     0x33 => {
                         // Binary-coded decimal conversion
                         let value = self.registers[vx as usize];
