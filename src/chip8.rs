@@ -31,6 +31,8 @@ pub(crate) struct Chip8 {
     program_counter: usize,
     register_i: u16,
     registers: [u8; 16],
+    delay_timer: u8,
+    sound_timer: u8,
 }
 
 impl Default for Chip8 {
@@ -42,6 +44,8 @@ impl Default for Chip8 {
             program_counter: 512,
             register_i: 0,
             registers: [0; 16],
+            delay_timer: 0,
+            sound_timer: 0,
         }
     }
 }
@@ -53,7 +57,7 @@ impl Chip8 {
         }
     }
 
-    pub(crate) fn tick(&mut self) {
+    pub(crate) fn tick(&mut self, keys: &[bool; 16]) -> bool {
         let operation = ((self.memory[self.program_counter] as u16) << 8)
             | self.memory[self.program_counter + 1] as u16;
         self.program_counter += 2;
@@ -205,6 +209,11 @@ impl Chip8 {
                 self.register_i = nnn;
             }
 
+            0xB => {
+                // Jump with offset
+                self.program_counter = nnn as usize + self.registers[0] as usize;
+            }
+
             0xD => {
                 // Draw
                 let orig_x = self.registers[vx as usize] as usize % COLUMNS;
@@ -232,8 +241,50 @@ impl Chip8 {
                     }
                 }
             }
+            0xE => {
+                match nn {
+                    0x9E => {
+                        // println!("Checking if {} is pressed", self.registers[vx as usize]);
+                        if keys[self.registers[vx as usize] as usize] {
+                            self.program_counter += 2;
+                        }
+                    }
+                    0xA1 => {
+                        // println!("Checking if {} is NOT pressed", self.registers[vx as usize]);
+                        if !keys[self.registers[vx as usize] as usize] {
+                            self.program_counter += 2;
+                        }
+                    }
+                    other => panic!("Unhandled E-type opcode: {other:#x} (full: {operation:#06x})"),
+                }
+            }
             0xF => {
                 match nn {
+                    0x07 => {
+                        // Get delay timer
+                        self.registers[vx as usize] = self.delay_timer;
+                    }
+                    0x0A => {
+                        // Get key
+                        let mut key_was_pressed = false;
+                        for (i, pressed) in keys.iter().enumerate() {
+                            if *pressed {
+                                self.registers[vx as usize] = i as u8;
+                                key_was_pressed = true;
+                            }
+                        }
+                        if !key_was_pressed {
+                            self.program_counter -= 2;
+                        }
+                    }
+                    0x15 => {
+                        // Set delay timer
+                        self.delay_timer = self.registers[vx as usize];
+                    }
+                    0x18 => {
+                        // Set sound timer
+                        self.sound_timer = self.registers[vx as usize];
+                    }
                     0x1e => {
                         // Add to index
                         let (new_i, carry) = self
@@ -255,6 +306,7 @@ impl Chip8 {
                             self.memory[self.register_i as usize + i as usize] =
                                 self.registers[i as usize];
                         }
+                        //self.register_i += vx as u16 + 1;
                     }
                     0x65 => {
                         // Load memory into registers
@@ -262,11 +314,22 @@ impl Chip8 {
                             self.registers[i as usize] =
                                 self.memory[self.register_i as usize + i as usize];
                         }
+                        //self.register_i += vx as u16 + 1;
                     }
                     other => panic!("Unhandled F-opcode: {other:#x} (full: {operation:#06x})"),
                 }
             }
             other => panic!("Unhandled opcode: {other:#x} (full: {operation:#06x})"),
+        }
+        self.sound_timer > 0
+    }
+
+    pub fn decrement_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
         }
     }
 }
@@ -274,28 +337,5 @@ impl Chip8 {
 fn _add_fonts(memory: &mut [u8; 4096], fonts: [u8; 80]) {
     for (i, byte) in fonts.iter().enumerate() {
         memory[i + 80] = *byte;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test() {
-        let mut chip8 = Chip8::default();
-        chip8.load_rom(include_bytes!("../roms/test/1-chip8-logo.ch8"));
-        for _i in 0..40 {
-            chip8.tick();
-        }
-        fn print_bool_grid(grid: &[[bool; COLUMNS]; ROWS], true_char: char, false_char: char) {
-            for row in grid {
-                for &cell in row {
-                    print!("{}", if cell { true_char } else { false_char });
-                }
-                println!();
-            }
-        }
-        print_bool_grid(&chip8.display, '■', ' ');
     }
 }

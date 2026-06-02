@@ -56,9 +56,42 @@ fn load_rom(rom: Res<LoadedRom>, mut chip8: ResMut<Chip8>) {
     chip8.load_rom(rom.bytes.as_slice())
 }
 
-fn tick_cpu(mut chip8: ResMut<Chip8>) {
-    for _ in 0..10 {
-        chip8.tick();
+fn tick_cpu(
+    mut chip8: ResMut<Chip8>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    //mut commands: Commands,
+    //mut pitch_assets: ResMut<Assets<Pitch>>,
+) {
+    let mut should_beep = false;
+    chip8.decrement_timers();
+    for _ in 0..20 {
+        let beep = chip8.tick(&[
+            keyboard_input.pressed(KeyCode::KeyX),
+            keyboard_input.pressed(KeyCode::Digit1),
+            keyboard_input.pressed(KeyCode::Digit2),
+            keyboard_input.pressed(KeyCode::Digit3),
+            keyboard_input.pressed(KeyCode::KeyQ),
+            keyboard_input.pressed(KeyCode::KeyW),
+            keyboard_input.pressed(KeyCode::KeyE),
+            keyboard_input.pressed(KeyCode::KeyA),
+            keyboard_input.pressed(KeyCode::KeyS),
+            keyboard_input.pressed(KeyCode::KeyD),
+            keyboard_input.pressed(KeyCode::KeyZ),
+            keyboard_input.pressed(KeyCode::KeyC),
+            keyboard_input.pressed(KeyCode::Digit4),
+            keyboard_input.pressed(KeyCode::KeyR),
+            keyboard_input.pressed(KeyCode::KeyF),
+            keyboard_input.pressed(KeyCode::KeyV),
+        ]);
+        if beep {
+            should_beep = true;
+        }
+    }
+    if should_beep {
+        // commands.spawn((
+        //     AudioPlayer(pitch_assets.add(Pitch::new(220., Duration::new(1, 0)))),
+        //     PlaybackSettings::DESPAWN,
+        // ));
     }
 }
 

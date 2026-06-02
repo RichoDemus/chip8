@@ -24,17 +24,34 @@ impl Default for Roms {
                     name: "Logo".to_string(),
                     bytes: include_bytes!("../roms/test/1-chip8-logo.ch8").to_vec(),
                 },
+                // Rom {
+                //     name: "IBM Logo".to_string(),
+                //     bytes: include_bytes!("../roms/test/2-ibm-logo.ch8").to_vec(),
+                // },
+                // Rom {
+                //     name: "Corax+".to_string(),
+                //     bytes: include_bytes!("../roms/test/3-corax+.ch8").to_vec(),
+                // },
+                // Rom {
+                //     name: "opcodes".to_string(),
+                //     bytes: include_bytes!("../roms/test/X-opcodes.ch8").to_vec(),
+                // },
+                // Rom {
+                //     name: "flags".to_string(),
+                //     bytes: include_bytes!("../roms/test/4-flags.ch8").to_vec(),
+                // },
                 Rom {
-                    name: "IBM Logo".to_string(),
-                    bytes: include_bytes!("../roms/test/2-ibm-logo.ch8").to_vec(),
+                    name: "Space Invaders".to_string(),
+                    bytes: include_bytes!("../roms/games/Space_Invaders_[David Winter].ch8")
+                        .to_vec(),
                 },
                 Rom {
-                    name: "Corax+".to_string(),
-                    bytes: include_bytes!("../roms/test/3-corax+.ch8").to_vec(),
+                    name: "Keypad".to_string(),
+                    bytes: include_bytes!("../roms/test/6-keypad.ch8").to_vec(),
                 },
                 Rom {
-                    name: "opcodes".to_string(),
-                    bytes: include_bytes!("../roms/test/X-opcodes.ch8").to_vec(),
+                    name: "Quirks".to_string(),
+                    bytes: include_bytes!("../roms/test/5-quirks.ch8").to_vec(),
                 },
             ],
         }
