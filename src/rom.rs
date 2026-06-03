@@ -41,9 +41,8 @@ impl Default for Roms {
                 //     bytes: include_bytes!("../roms/test/4-flags.ch8").to_vec(),
                 // },
                 Rom {
-                    name: "Space Invaders".to_string(),
-                    bytes: include_bytes!("../roms/games/Space_Invaders_[David Winter].ch8")
-                        .to_vec(),
+                    name: "Dino Run".to_string(),
+                    bytes: include_bytes!("../roms/games/dinorun.ch8").to_vec(),
                 },
                 Rom {
                     name: "Keypad".to_string(),

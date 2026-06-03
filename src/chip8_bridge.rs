@@ -13,7 +13,7 @@ impl Plugin for Chip8BridgePlugin {
         app.init_resource::<Chip8>();
         app.insert_resource(Time::<Fixed>::from_duration(Duration::from_micros(16666)));
         app.add_systems(OnEnter(GameState::Game), setup_pixels);
-        app.add_systems(OnEnter(GameState::Game), load_rom);
+        app.add_systems(OnEnter(GameState::Game), setup_chip8);
         app.add_systems(OnEnter(GameState::Game), setup_audio);
         app.add_systems(FixedUpdate, tick_cpu.run_if(in_state(GameState::Game)));
         app.add_systems(
@@ -56,8 +56,9 @@ pub fn setup_pixels(
     }
 }
 
-fn load_rom(rom: Res<LoadedRom>, mut chip8: ResMut<Chip8>) {
-    chip8.load_rom(rom.bytes.as_slice())
+fn setup_chip8(rom: Res<LoadedRom>, mut chip8: ResMut<Chip8>) {
+    chip8.load_rom(rom.bytes.as_slice());
+    chip8.add_fonts();
 }
 
 #[derive(Component)]

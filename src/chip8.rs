@@ -1,7 +1,7 @@
 use bevy::prelude::Resource;
 use std::collections::VecDeque;
 
-const _FONTS: [u8; 80] = [
+const FONTS: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -57,6 +57,12 @@ impl Chip8 {
     pub fn load_rom(&mut self, rom: &[u8]) {
         for (i, byte) in rom.iter().enumerate() {
             self.memory[512 + i] = *byte;
+        }
+    }
+
+    pub fn add_fonts(&mut self) {
+        for (i, byte) in FONTS.iter().enumerate() {
+            self.memory[i + 50] = *byte;
         }
     }
 
@@ -298,6 +304,10 @@ impl Chip8 {
                         // Set sound timer
                         self.sound_timer = self.registers[vx as usize];
                     }
+                    0x29 => {
+                        // Get font
+                        self.register_i = 50 + self.registers[vx as usize] as u16 * 5;
+                    }
                     0x1e => {
                         // Add to index
                         let (new_i, carry) = self
@@ -346,11 +356,5 @@ impl Chip8 {
     }
     pub fn should_beep(&self) -> bool {
         self.sound_timer > 0
-    }
-}
-
-fn _add_fonts(memory: &mut [u8; 4096], fonts: [u8; 80]) {
-    for (i, byte) in fonts.iter().enumerate() {
-        memory[i + 80] = *byte;
     }
 }
