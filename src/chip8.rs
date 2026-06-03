@@ -151,13 +151,10 @@ impl Chip8 {
                         // sets carry flag to 0 if overflow, 1 if no overflow
                         let minuend = self.registers[vx as usize];
                         let subtrahend = self.registers[vy as usize];
-                        if minuend >= subtrahend {
-                            self.registers[0xF] = 1;
-                        } else {
-                            self.registers[0xF] = 0
-                        }
+                        let carry = if minuend >= subtrahend { 1 } else { 0 };
                         self.registers[vx as usize] =
                             self.registers[vx as usize].wrapping_sub(self.registers[vy as usize]);
+                        self.registers[0xF] = carry;
                     }
                     0x6 => {
                         // Shift Right
@@ -174,13 +171,10 @@ impl Chip8 {
                         // sets carry flag to 0 if overflow, 1 if no overflow
                         let minuend = self.registers[vy as usize];
                         let subtrahend = self.registers[vx as usize];
-                        if minuend >= subtrahend {
-                            self.registers[0xF] = 1;
-                        } else {
-                            self.registers[0xF] = 0
-                        }
+                        let carry = if minuend >= subtrahend { 1 } else { 0 };
                         self.registers[vx as usize] =
                             self.registers[vy as usize].wrapping_sub(self.registers[vx as usize]);
+                        self.registers[0xF] = carry;
                     }
                     0xE => {
                         // Shift Left
