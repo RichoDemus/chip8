@@ -33,6 +33,8 @@ pub(crate) struct Chip8 {
     registers: [u8; 16],
     delay_timer: u8,
     sound_timer: u8,
+    // basically, once we draw a sprite we wait for the next frame until we do anything else
+    pub(crate) waiting_for_vertical_blank: bool,
 }
 
 impl Default for Chip8 {
@@ -46,6 +48,7 @@ impl Default for Chip8 {
             registers: [0; 16],
             delay_timer: 0,
             sound_timer: 0,
+            waiting_for_vertical_blank: false,
         }
     }
 }
@@ -58,6 +61,9 @@ impl Chip8 {
     }
 
     pub(crate) fn tick(&mut self, keys: &[bool; 16]) {
+        if self.waiting_for_vertical_blank {
+            return;
+        }
         let operation = ((self.memory[self.program_counter] as u16) << 8)
             | self.memory[self.program_counter + 1] as u16;
         self.program_counter += 2;
@@ -130,14 +136,17 @@ impl Chip8 {
                     0x1 => {
                         // set vx to vx or vy
                         self.registers[vx as usize] |= self.registers[vy as usize];
+                        self.registers[0xF] = 0;
                     }
                     0x2 => {
                         // set vx to vx and vy
                         self.registers[vx as usize] &= self.registers[vy as usize];
+                        self.registers[0xF] = 0;
                     }
                     0x3 => {
                         // set vx to vx xor vy
                         self.registers[vx as usize] ^= self.registers[vy as usize];
+                        self.registers[0xF] = 0;
                     }
                     0x4 => {
                         // add vy to vx, set carry to 1 if overflow
@@ -210,30 +219,40 @@ impl Chip8 {
 
             0xD => {
                 // Draw
-                let orig_x = self.registers[vx as usize] as usize % COLUMNS;
-                let orig_y = self.registers[vy as usize] as usize % ROWS;
+                let start_x = self.registers[vx as usize] as usize % COLUMNS;
+                let start_y = self.registers[vy as usize] as usize % ROWS;
                 self.registers[0xF] = 0;
 
                 for row in 0..n as usize {
+                    let mut current_y = start_y + row;
+                    //clipping quirk
+                    if current_y >= ROWS {
+                        break;
+                    } else {
+                        current_y %= ROWS;
+                    }
+
                     let sprite_byte = self.memory[self.register_i as usize + row];
-                    let sprite_bits: [bool; 8] =
-                        core::array::from_fn(|i| (sprite_byte & (1 << (7 - i))) != 0);
 
-                    #[allow(clippy::needless_range_loop)]
                     for col in 0..8 {
-                        let x = (orig_x + col) % COLUMNS;
-                        let y = (orig_y + row) % ROWS;
+                        let current_x = start_x + col;
 
-                        if sprite_bits[col] {
-                            if self.display[y][x] {
-                                self.display[y][x] = false;
+                        //clipping quirk
+                        if current_x >= COLUMNS {
+                            break;
+                        }
+
+                        // evil black magic to iterate over the bits in sprite_byte
+                        if sprite_byte & (0x80 >> col) != 0 {
+                            if self.display[current_y][current_x] {
                                 self.registers[0xF] = 1;
-                            } else {
-                                self.display[y][x] = true;
                             }
+                            self.display[current_y][current_x] =
+                                !self.display[current_y][current_x];
                         }
                     }
                 }
+                self.waiting_for_vertical_blank = true;
             }
             0xE => {
                 match nn {
@@ -300,7 +319,7 @@ impl Chip8 {
                             self.memory[self.register_i as usize + i as usize] =
                                 self.registers[i as usize];
                         }
-                        //self.register_i += vx as u16 + 1;
+                        self.register_i += vx as u16 + 1;
                     }
                     0x65 => {
                         // Load memory into registers
@@ -308,7 +327,7 @@ impl Chip8 {
                             self.registers[i as usize] =
                                 self.memory[self.register_i as usize + i as usize];
                         }
-                        //self.register_i += vx as u16 + 1;
+                        self.register_i += vx as u16 + 1;
                     }
                     other => panic!("Unhandled F-opcode: {other:#x} (full: {operation:#06x})"),
                 }

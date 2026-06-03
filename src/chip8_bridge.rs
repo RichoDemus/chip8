@@ -11,6 +11,7 @@ pub struct Chip8BridgePlugin;
 impl Plugin for Chip8BridgePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Chip8>();
+        app.insert_resource(Time::<Fixed>::from_duration(Duration::from_micros(16666)));
         app.add_systems(OnEnter(GameState::Game), setup_pixels);
         app.add_systems(OnEnter(GameState::Game), load_rom);
         app.add_systems(OnEnter(GameState::Game), setup_audio);
@@ -72,6 +73,7 @@ fn setup_audio(mut commands: Commands, mut pitch_assets: ResMut<Assets<Pitch>>) 
 
 fn tick_cpu(mut chip8: ResMut<Chip8>, keyboard_input: Res<ButtonInput<KeyCode>>) {
     chip8.decrement_timers();
+    chip8.waiting_for_vertical_blank = false;
     for _ in 0..20 {
         chip8.tick(&[
             keyboard_input.pressed(KeyCode::KeyX),
