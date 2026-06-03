@@ -19,6 +19,7 @@ impl Plugin for Chip8BridgePlugin {
             Update,
             translate_display_to_bevy.run_if(in_state(GameState::Game)),
         );
+        app.add_systems(Update, beep.run_if(in_state(GameState::Game)));
     }
 }
 
@@ -69,15 +70,10 @@ fn setup_audio(mut commands: Commands, mut pitch_assets: ResMut<Assets<Pitch>>) 
     ));
 }
 
-fn tick_cpu(
-    mut chip8: ResMut<Chip8>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    audio: Single<&mut AudioSink, With<Beep>>,
-) {
-    let mut should_beep = false;
+fn tick_cpu(mut chip8: ResMut<Chip8>, keyboard_input: Res<ButtonInput<KeyCode>>) {
     chip8.decrement_timers();
     for _ in 0..20 {
-        let beep = chip8.tick(&[
+        chip8.tick(&[
             keyboard_input.pressed(KeyCode::KeyX),
             keyboard_input.pressed(KeyCode::Digit1),
             keyboard_input.pressed(KeyCode::Digit2),
@@ -94,19 +90,7 @@ fn tick_cpu(
             keyboard_input.pressed(KeyCode::KeyR),
             keyboard_input.pressed(KeyCode::KeyF),
             keyboard_input.pressed(KeyCode::KeyV),
-        ]);
-        if beep {
-            should_beep = true;
-        }
-    }
-    if should_beep {
-        if audio.is_paused() {
-            audio.toggle_playback();
-        }
-    } else {
-        if !audio.is_paused() {
-            audio.toggle_playback();
-        }
+        ])
     }
 }
 
@@ -117,5 +101,13 @@ fn translate_display_to_bevy(chip8: Res<Chip8>, mut pixels: Query<(&Pixel, &mut 
         } else {
             *visibility = Visibility::Hidden;
         }
+    }
+}
+
+fn beep(chip8: Res<Chip8>, audio: Single<&mut AudioSink, With<Beep>>) {
+    if chip8.should_beep() {
+        audio.play()
+    } else {
+        audio.pause()
     }
 }

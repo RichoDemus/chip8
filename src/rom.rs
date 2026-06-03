@@ -20,10 +20,10 @@ impl Default for Roms {
     fn default() -> Self {
         Self {
             roms: vec![
-                Rom {
-                    name: "Logo".to_string(),
-                    bytes: include_bytes!("../roms/test/1-chip8-logo.ch8").to_vec(),
-                },
+                // Rom {
+                //     name: "Logo".to_string(),
+                //     bytes: include_bytes!("../roms/test/1-chip8-logo.ch8").to_vec(),
+                // },
                 // Rom {
                 //     name: "IBM Logo".to_string(),
                 //     bytes: include_bytes!("../roms/test/2-ibm-logo.ch8").to_vec(),
@@ -48,6 +48,10 @@ impl Default for Roms {
                 Rom {
                     name: "Keypad".to_string(),
                     bytes: include_bytes!("../roms/test/6-keypad.ch8").to_vec(),
+                },
+                Rom {
+                    name: "Beep".to_string(),
+                    bytes: include_bytes!("../roms/test/7-beep.ch8").to_vec(),
                 },
                 Rom {
                     name: "Quirks".to_string(),

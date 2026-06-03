@@ -57,7 +57,7 @@ impl Chip8 {
         }
     }
 
-    pub(crate) fn tick(&mut self, keys: &[bool; 16]) -> bool {
+    pub(crate) fn tick(&mut self, keys: &[bool; 16]) {
         let operation = ((self.memory[self.program_counter] as u16) << 8)
             | self.memory[self.program_counter + 1] as u16;
         self.program_counter += 2;
@@ -321,7 +321,6 @@ impl Chip8 {
             }
             other => panic!("Unhandled opcode: {other:#x} (full: {operation:#06x})"),
         }
-        self.sound_timer > 0
     }
 
     pub fn decrement_timers(&mut self) {
@@ -331,6 +330,9 @@ impl Chip8 {
         if self.sound_timer > 0 {
             self.sound_timer -= 1;
         }
+    }
+    pub fn should_beep(&self) -> bool {
+        self.sound_timer > 0
     }
 }
 
